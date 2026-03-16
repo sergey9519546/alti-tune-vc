@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "game",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "8787", "--cors", "-c", "serve.json", "."],
+      "port": 8787
+    }
+  ]
+}
