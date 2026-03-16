@@ -12,7 +12,7 @@
     </style>
 </head>
 <body>
-    <iframe id="game" src="/index.html" allow="fullscreen; pointer-lock; autoplay"></iframe>
+    <iframe id="game" src="index.html" allow="fullscreen; pointer-lock; autoplay"></iframe>
     <script>
         const ASSETS_BASE = 'https://raw.githubusercontent.com/sergey9519546/vc-game-assets/master';
 
@@ -38,7 +38,7 @@
             if (!source) return;
 
             if (data.event === 'module.initfs') {
-                const text = await fetch('/preload_files.list').then(r => r.text());
+                const text = await fetch('preload_files.list').then(r => r.text());
                 const paths = text.split('\n')
                     .map(l => l.trim().toLowerCase())
                     .filter(l => {
