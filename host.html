@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>alti.tune Band — Vice City</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+        iframe { width: 100%; height: 100%; border: none; display: block; }
+    </style>
+</head>
+<body>
+    <iframe id="game" src="/index.html" allow="fullscreen; pointer-lock; autoplay"></iframe>
+    <script>
+        const ASSETS_BASE = 'https://sergey9519546.github.io/vc-game-assets';
+
+        const iframe = document.getElementById('game');
+        let initialFiles = [];
+        let currentFile = -1;
+        let reportedProgress = 0;
+
+        iframe.addEventListener('load', () => {
+            try { iframe.contentWindow.haveOriginalGame = true; } catch (e) {}
+        });
+
+        async function fetchAsset(filePath) {
+            const url = ASSETS_BASE + '/' + filePath.split('/').map(encodeURIComponent).join('/');
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Not found: ' + filePath);
+            return res.arrayBuffer();
+        }
+
+        window.addEventListener('message', async (event) => {
+            const data = event.data;
+            const source = event.source;
+            if (!source) return;
+
+            if (data.event === 'module.initfs') {
+                const text = await fetch('/preload_files.list').then(r => r.text());
+                const paths = text.split('\n')
+                    .map(l => l.trim().toLowerCase())
+                    .filter(l => {
+                        if (l.length === 0 || l[0] === '#') return false;
+                        const lastSeg = l.split('/').pop();
+                        return lastSeg.includes('.');
+                    });
+                initialFiles = Array.from(new Set(paths));
+                currentFile = -1;
+                reportedProgress = 0;
+                source.postMessage({ event: '>module.initfs', files: initialFiles.length }, '*');
+
+            } else if (data.event === 'module.initfile') {
+                currentFile++;
+                const pct = Math.floor((currentFile / initialFiles.length) * 100);
+                if (pct > reportedProgress) {
+                    reportedProgress = pct;
+                    console.log('Loading: ' + pct + '% (' + currentFile + '/' + initialFiles.length + ')');
+                }
+                if (currentFile < initialFiles.length) {
+                    const filePath = initialFiles[currentFile];
+                    try {
+                        const buffer = await fetchAsset(filePath);
+                        source.postMessage({ event: '>module.initfile', path: filePath, data: new Uint8Array(buffer) }, '*', [buffer]);
+                    } catch (e) {
+                        source.postMessage({ event: '>module.initfile', path: filePath, data: new Uint8Array(0) }, '*');
+                    }
+                }
+
+            } else if (data.event === 'module.getasyncurl' && data.file) {
+                const file = data.file.replaceAll('\\', '/').replaceAll('//', '/');
+                try {
+                    const buffer = await fetchAsset(file);
+                    source.postMessage({ event: '>module.getasyncurl', file: data.file, data: new Uint8Array(buffer) }, '*', [buffer]);
+                } catch (e) {
+                    source.postMessage({ event: '>module.getasyncurl', file: data.file }, '*');
+                }
+
+            } else if (data.event === 'request-fullscreen') {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+        });
+    </script>
+</body>
+</html>
